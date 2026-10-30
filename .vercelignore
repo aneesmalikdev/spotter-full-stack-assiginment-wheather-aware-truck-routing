@@ -1,0 +1,20 @@
+# Read by `vercel deploy` (uploads from this machine). Git deploys only contain tracked files, so
+# .gitignore covers those. The CLI skips .env.local, node_modules, .venv, __pycache__ and .vercel by
+# itself, but not a plain .env.
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local working files
+.claude/
+CLAUDE.md
+REQUIREMENTS.md
+skills-lock.json
+
+# Made on Vercel during the build
+frontend/dist/
+backend/staticfiles/
+.pytest_cache/
+*.sqlite3

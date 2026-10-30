@@ -1,0 +1,1946 @@
+/* Weather-Aware Truck Routing. Mobile first: the stacked page is the default and the floating
+   layout (panel over a full-window map) applies from 960 x 560 px. */
+
+:root {
+  color-scheme: light;
+  --map-land: #f2f3f0;
+  --surface: #ffffff;
+  --surface-2: #f4f5f6;
+  --surface-3: #e3e5e7;
+  --ink: #1f2429;
+  --ink-2: #454b52;
+  --ink-3: #5f666d;
+  --hairline: #d4d7d9;
+  --border-strong: #7a8188;
+  --plum: #871b63;
+  --error: #b42318;
+  --risk-0: #caeed0;
+  --risk-1: #f9c718;
+  --risk-2: #f58028;
+  --risk-3: #d7352d;
+  --risk-4: #871b63;
+  --risk-none: #9da2a8;
+  --risk-none-edge: #2f353a;
+  /* Heat cells as they look on the map: each level's colour at its opacity over the land (mapStyle.ts
+     HEAT_OPACITY), for the key's squares. */
+  --heat-0: #daf0dd;
+  --heat-1: #f8d043;
+  --heat-2: #f58c3c;
+  --heat-3: #d83f37;
+  --heat-4: #923171;
+  --heat-none: #b2b6ba;
+  --font: 'Overpass Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --shadow-float: 0 1px 2px rgba(31, 36, 41, 0.12), 0 6px 20px rgba(31, 36, 41, 0.14);
+  --panel-w: 380px;
+  --attrib-h: 24px;
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --panel-w: 400px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p,
+ul,
+dl,
+dd,
+fieldset,
+legend {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+[tabindex='-1']:focus {
+  outline: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Layout: stacked (default) */
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.panel-section {
+  padding: 16px 0;
+}
+
+.panel-section + .panel-section,
+.results .panel-section:first-child {
+  border-top: 1px solid var(--hairline);
+}
+
+.map-region {
+  display: grid;
+  grid-template-rows: auto auto;
+  margin: 0 -16px;
+}
+
+.map-frame {
+  grid-area: 1 / 1;
+  position: relative;
+  height: clamp(320px, 62svh, 560px);
+  background: var(--map-land);
+}
+
+.map {
+  width: 100%; /* MapLibre's own stylesheet makes this element position: relative */
+  height: 100%;
+}
+
+.dock,
+.dock-card {
+  display: contents;
+}
+
+.slider-card {
+  position: relative;
+  z-index: 2;
+  grid-area: 1 / 1;
+  align-self: end;
+  margin: 0 8px calc(var(--attrib-h) + 6px);
+  padding: 10px 14px 4px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+}
+
+.key {
+  grid-row: 2;
+  padding: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* Layout: floating */
+
+@media (min-width: 960px) and (min-height: 560px) {
+  body {
+    overflow: hidden;
+    background: var(--map-land);
+  }
+
+  .app {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .panel {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    width: var(--panel-w);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-float);
+  }
+
+  .panel-section {
+    padding: 16px;
+  }
+
+  .map-region {
+    position: fixed;
+    inset: 0;
+    display: block;
+    margin: 0;
+  }
+
+  .map-frame {
+    position: absolute;
+    inset: 0;
+    height: auto;
+  }
+
+  .dock {
+    position: absolute;
+    z-index: 2;
+    left: calc(24px + var(--panel-w));
+    right: 12px;
+    bottom: calc(var(--attrib-h) + 8px);
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .dock-card {
+    display: block;
+    width: 100%;
+    max-width: 760px;
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-float);
+    pointer-events: auto;
+  }
+
+  .slider-card {
+    position: static;
+    margin: 0;
+    padding: 12px 16px 4px;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .key {
+    padding: 12px 16px;
+    border: 0;
+  }
+
+  .slider-card + .key {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .key-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .maplibregl-ctrl-bottom-right {
+    max-width: calc(100vw - 36px - var(--panel-w));
+  }
+}
+
+@media (min-width: 1280px) and (min-height: 560px) {
+  .panel-section {
+    padding: 16px 20px;
+  }
+}
+
+/* Header */
+
+h1 {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.intro {
+  margin-top: 4px;
+  color: var(--ink-2);
+}
+
+/* Trip form */
+
+.trip-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary + .trip-form {
+  margin-top: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field label,
+.segments legend {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 0 11px;
+  font-size: 16px;
+  line-height: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.input[aria-invalid='true'] {
+  padding: 0 10px;
+  border: 2px solid var(--error);
+}
+
+/* City suggestions under From and To: a list over the fields below, never a forced choice. */
+.place-field {
+  position: relative;
+}
+
+.place-list {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
+  animation: place-list-in 120ms ease-out both;
+}
+
+.place-option {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+/* The row Enter will pick: the tint plus an ink bar, as on a spotlighted route row (the tint alone is
+   too faint to see). */
+.place-option.is-active {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+@media (pointer: coarse) {
+  .place-option {
+    padding: 12px 10px; /* 44 px to tap */
+  }
+}
+
+@keyframes place-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.with-zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone {
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.with-suffix {
+  position: relative;
+}
+
+.with-suffix .input {
+  padding-right: 36px;
+}
+
+.suffix {
+  position: absolute;
+  top: 11px;
+  right: 12px;
+  color: var(--ink-2);
+}
+
+.helper {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+}
+
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--error);
+}
+
+.sign {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+
+.sign-error {
+  color: var(--error);
+}
+
+.load-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.load-row .field {
+  flex: 1;
+}
+
+.segments {
+  flex: none;
+  min-width: 0;
+  border: 0;
+}
+
+.segments legend {
+  margin-bottom: 4px;
+}
+
+.segment-row {
+  display: flex;
+}
+
+.segment {
+  position: relative;
+  display: block;
+}
+
+.segment input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.segment span {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  margin-left: -1px;
+  background: var(--surface);
+}
+
+.segment:first-child span {
+  margin-left: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.segment:last-child span {
+  border-radius: 0 6px 6px 0;
+}
+
+.segment input:checked + span {
+  position: relative;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.segment:has(:focus-visible) span {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.button-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 120ms ease;
+}
+
+.button-primary:active:not([aria-disabled='true']) {
+  transform: scale(0.98);
+}
+
+.spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button-primary:hover {
+  background: #3a4148;
+}
+
+.button-primary:active {
+  background: #14181b;
+}
+
+.button-primary[aria-disabled='true'] {
+  background: var(--surface-3);
+  color: var(--ink-3);
+  cursor: default;
+}
+
+/* Planning: the button stays dark while its label walks through the steps. */
+.button-primary.is-busy {
+  background: var(--ink);
+  color: #fff;
+  cursor: progress;
+}
+
+.button-secondary {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-secondary:hover {
+  background: var(--surface-2);
+}
+
+@media (pointer: coarse) {
+  .button-secondary {
+    height: 44px;
+  }
+}
+
+/* Trip summary */
+
+.summary {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-list {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 2px 8px;
+}
+
+.summary-list dt {
+  padding-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+}
+
+.summary-place {
+  font-weight: 600;
+}
+
+.summary-change {
+  justify-self: start;
+}
+
+@media (min-width: 960px) and (min-height: 560px) {
+  .summary {
+    position: relative;
+  }
+
+  .summary-change {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
+  .summary-list dd:nth-of-type(-n + 2) {
+    padding-right: 112px; /* From and To sit beside the button; Departure and Load use the full width */
+  }
+}
+
+/* Loading and request errors */
+
+.loading {
+  margin-top: 12px;
+}
+
+/* While a plan is worked out: a truck drives along a road whose lane markings scroll past. */
+.road {
+  position: relative;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.road-lane {
+  position: absolute;
+  left: 0;
+  right: -28px;
+  bottom: 7px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0 16px, transparent 16px 28px);
+  animation: road-lane 0.45s linear infinite;
+}
+
+@keyframes road-lane {
+  to {
+    transform: translateX(-28px);
+  }
+}
+
+.road-truck {
+  position: absolute;
+  left: calc(50% - 24px);
+  bottom: 6px;
+  width: 48px;
+  height: 22px;
+  animation: truck-bob 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes truck-bob {
+  to {
+    transform: translateY(-1px);
+  }
+}
+
+.results {
+  /* backwards: once it has played, the dimming during a re-plan (.is-stale) still applies */
+  animation: results-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes results-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.loading-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+
+.loading-elapsed {
+  flex: none;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The button's label while planning: a slot as wide as the widest step (lib/steps.ts), so the spinner
+   beside it stays put as the steps change; each new step slides up into place. */
+.button-step {
+  flex: 0 1 14em;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  animation: step-in 260ms ease-out both;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.request-error {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--error);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.request-error p[role='alert'] {
+  display: flex;
+  gap: 6px;
+}
+
+.retry {
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.results.is-stale {
+  opacity: 0.45;
+}
+
+/* Plates */
+
+.plate {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  padding-top: 2px; /* Overpass sits high in its line box */
+  font-weight: 800;
+  line-height: 1;
+  forced-color-adjust: none;
+}
+
+.plate-board {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  font-size: 16px;
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+.plate-board.plate-rec {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: inset 0 0 0 2px var(--ink), inset 0 0 0 3px #fff;
+}
+
+.plate-board.plate-inverse {
+  background: #fff;
+  color: var(--plum);
+  box-shadow: none;
+}
+
+.plate-headline {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  font-size: 26px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 4.5px #fff;
+}
+
+/* Recommendation */
+
+.answer-head {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.answer-title {
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.answer-trip {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+
+.answer-why {
+  margin-top: 12px;
+  color: var(--ink-2);
+}
+
+.answer-note {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.answer-flag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  line-height: 28px;
+  font-weight: 800;
+}
+
+.answer-flag-icon {
+  width: 24px;
+  height: 24px;
+  margin-top: 0;
+}
+
+.answer-route {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.answer-route-name {
+  font-weight: 600;
+}
+
+.answer-unsafe {
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--plum);
+  color: #fff;
+}
+
+.answer-unsafe .answer-trip,
+.answer-unsafe .answer-why {
+  color: #fff;
+}
+
+.answer-unsafe :focus-visible {
+  outline-color: #fff;
+}
+
+.answer-unknown {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--risk-none-edge);
+}
+
+@media (max-width: 959px), (max-height: 559px) {
+  .answer-title {
+    font-size: 24px;
+    line-height: 28px;
+  }
+}
+
+/* Notes */
+
+.notes li {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+
+/* Route board: one row per route. Each measure carries its own label, and the five measures sit in
+   the same columns on every row, so a number reads on its own and the routes still compare down a column. */
+
+.caption {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+}
+
+/* "The [outlined] measure put Route C ahead of Route A.": the word wears the mark it explains. */
+.board-key {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-2);
+}
+
+.board-key-mark {
+  padding: 1px 4px 0;
+  border-radius: 4px;
+  outline: 1.5px solid var(--ink);
+  outline-offset: -1.5px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.board-rows {
+  margin-top: 8px;
+}
+
+.board-rows li + li {
+  border-top: 1px solid var(--hairline);
+}
+
+.board-row {
+  display: block;
+  width: 100%;
+  padding: 10px 8px 12px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.board-row:focus-visible {
+  background: var(--surface-2);
+}
+
+@media (hover: hover) {
+  .board-row:hover {
+    background: var(--surface-2); /* touch screens keep :hover on the last tapped row */
+  }
+}
+
+/* A pinned row is a shade darker than a hovered or focused one (and comes after them), so pinning a row
+   under the mouse or the keyboard visibly does something. */
+.board-row[aria-pressed='true'] {
+  background: var(--surface-3);
+}
+
+.board-row.is-spot {
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+/* The plate, then the pills over the trip (or the trip alone, beside the plate). */
+.board-route {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+}
+
+.board-route-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+
+.board-trip {
+  flex-basis: 100%;
+}
+
+/* The five measures in ranking order. Fixed shares, sized to the widest thing each column holds
+   ("No Travel", "1,235", "1,235", "Avg risk", "20 h 47 min"), keep a measure in the same place on every
+   row. The negative margins move the cells' padding into the row's, so the labels line up with the plate. */
+.measures {
+  display: grid;
+  grid-template-columns: minmax(0, 61fr) minmax(0, 49fr) minmax(0, 49fr) minmax(0, 53fr) minmax(0, 80fr);
+  column-gap: 4px;
+  max-width: 420px; /* the stacked layout is up to 608 px wide: keep the measures together */
+  margin: 8px -4px 0 -5px;
+}
+
+.measure {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 3px 4px 5px; /* text clears a tint or outline on the left; values end short of the right */
+  border-radius: 4px;
+}
+
+.measure-label {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.measure-value {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.measure-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.measure.is-zero .measure-value {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+/* Miles at High, Severe or No Travel: a tint of the level's map colour (--risk-2 to 4), and a bold number.
+   The tints are see-through, so they still show on a hovered or pinned row. */
+.measure.is-level-2 {
+  background: rgb(245 128 40 / 0.18);
+}
+
+.measure.is-level-3 {
+  background: rgb(215 53 45 / 0.13);
+}
+
+.measure.is-level-4 {
+  background: rgb(135 27 99 / 0.13);
+}
+
+.measure:is(.is-level-2, .is-level-3, .is-level-4) .measure-label {
+  color: var(--ink-2);
+}
+
+.measure:is(.is-level-2, .is-level-3, .is-level-4) .measure-value {
+  font-weight: 700;
+}
+
+/* The measure that decided the pick, outlined on every row. */
+.measure.is-decided {
+  outline: 1.5px solid var(--ink);
+  outline-offset: -1.5px;
+}
+
+.measure.is-decided .measure-label,
+.measure.is-decided .measure-value {
+  color: var(--ink);
+}
+
+.measure.is-decided.is-zero .measure-value {
+  font-weight: 600; /* a winning 0 is the reason, so it reads in ink */
+}
+
+/* A route without forecast data: one cell in place of the four risk measures. */
+.measure-nodata {
+  grid-column: span 4;
+}
+
+.measure-nodata .measure-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.measure-icon {
+  width: 14px;
+  height: 14px;
+  margin-top: -2px;
+}
+
+.board-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+
+.board-extra > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dot-icon {
+  width: 10px;
+  height: 10px;
+  margin-top: 0;
+}
+
+.footnote {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+
+/* Under 360 px the measures take two lines: the three risk levels, then average risk and drive time. */
+@media (max-width: 359px) {
+  .measures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 4px;
+  }
+
+  .measure-nodata {
+    grid-column: 1 / -1;
+  }
+
+  .measure-drive {
+    grid-column: 2;
+  }
+}
+
+/* Pills */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 0;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  forced-color-adjust: none;
+}
+
+.pill-rec {
+  background: var(--ink);
+  color: #fff;
+}
+
+.pill-outline {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+.pill-unsafe {
+  background: var(--plum);
+  color: #fff;
+}
+
+.pill-icon {
+  width: 10px;
+  height: 10px;
+  margin-top: -1px;
+}
+
+.pill-level-0 {
+  background: var(--risk-0);
+  color: var(--ink);
+}
+
+.pill-level-1 {
+  background: var(--risk-1);
+  color: var(--ink);
+}
+
+.pill-level-2 {
+  background: var(--risk-2);
+  color: var(--ink);
+}
+
+.pill-level-3 {
+  background: var(--risk-3);
+  color: #fff;
+}
+
+.pill-level-4 {
+  background: var(--risk-4);
+  color: #fff;
+}
+
+.pill-level-none {
+  background: var(--risk-none);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--risk-none-edge);
+}
+
+/* Risk dots (the map's colours and rings) */
+
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  forced-color-adjust: none;
+}
+
+.dot-0 {
+  background: var(--risk-0);
+  box-shadow: 0 0 0 0.75px rgba(31, 36, 41, 0.6);
+}
+
+.dot-1 {
+  background: var(--risk-1);
+}
+
+.dot-2 {
+  background: var(--risk-2);
+}
+
+.dot-3 {
+  background: var(--risk-3);
+}
+
+.dot-4 {
+  background: var(--risk-4);
+}
+
+.dot-none {
+  background: var(--risk-none);
+  box-shadow: 0 0 0 1.5px var(--risk-none-edge);
+}
+
+/* Map key */
+
+.key-levels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column; /* Low to High down the first column, Severe to No data down the second */
+  gap: 6px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.key-levels li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 0;
+}
+
+.dot.key-dot {
+  box-shadow: 0 0 0 1px rgba(31, 36, 41, 0.25);
+}
+
+.dot-0.key-dot {
+  box-shadow: 0 0 0 1px rgba(31, 36, 41, 0.55); /* pale Low keeps the dark ring it wears on the map */
+}
+
+/* A heat cell's colour as it shows on the map, next to the level's dot. */
+.key-square {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(31, 36, 41, 0.25);
+  forced-color-adjust: none;
+}
+
+.key-square-0 {
+  background-color: var(--heat-0);
+}
+
+.key-square-1 {
+  background-color: var(--heat-1);
+}
+
+.key-square-2 {
+  background-color: var(--heat-2);
+}
+
+.key-square-3 {
+  background-color: var(--heat-3);
+}
+
+.key-square-4 {
+  background-color: var(--heat-4);
+}
+
+.key-square-none {
+  /* the map's hatch: 45° lines 7 px apart */
+  background: repeating-linear-gradient(-45deg, rgba(47, 53, 58, 0.55) 0 1px, transparent 1px 7px) var(--heat-none);
+}
+
+.key-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+
+.key-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-line svg {
+  width: 24px;
+  height: 8px;
+}
+
+.key-line .key-truck {
+  height: 10px; /* the top-down truck's 40 x 16 grid at 24 px wide */
+  color: var(--ink);
+}
+
+@media (min-width: 960px) and (min-height: 560px) {
+  .key-levels {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 0;
+  }
+}
+
+/* Heatmap slider: which hour after departure the heat cells show. */
+
+.heat-slider {
+  --thumb: 20px;
+}
+
+.heat-readout {
+  display: flex;
+  flex-wrap: wrap; /* a long time-zone name pushes "+7 h" down a line rather than squeezing the time */
+  align-items: baseline;
+  gap: 0 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.heat-label {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.heat-time {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat-offset {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A 32 px hit area round a 4 px track that fills with ink up to the thumb (--pct, set inline). */
+.heat-range {
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+  touch-action: pan-y; /* a sideways drag moves the thumb; the page still scrolls up and down */
+}
+
+.heat-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--ink) var(--pct, 0%), var(--hairline) var(--pct, 0%));
+}
+
+.heat-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline);
+}
+
+.heat-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+.heat-range::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((4px - var(--thumb)) / 2);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(31, 36, 41, 0.3);
+  appearance: none;
+}
+
+.heat-range::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(31, 36, 41, 0.3);
+}
+
+/* The focus ring goes round the thumb, the part that moves. */
+.heat-range:focus-visible {
+  outline: none;
+}
+
+.heat-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink);
+}
+
+.heat-range:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink);
+}
+
+/* Ticks every 6 hours, labels every 12, centred under the thumb's positions. */
+.heat-scale {
+  position: relative;
+  height: 20px;
+  margin: 0 calc(var(--thumb) / 2);
+}
+
+.heat-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 5px;
+  margin-left: -0.5px;
+  background: var(--border-strong);
+}
+
+.heat-tick-label {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 12px;
+  line-height: 14px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .heat-slider {
+    --thumb: 24px;
+  }
+
+  .heat-range {
+    height: 44px;
+  }
+}
+
+/* Map chrome */
+
+.map-problem {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: min(320px, calc(100% - 32px));
+  padding: 16px;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+}
+
+@media (min-width: 960px) and (min-height: 560px) {
+  .map-problem {
+    left: calc(50% + (var(--panel-w) + 12px) / 2); /* centred in the part of the map the panel leaves */
+  }
+}
+
+/* Overrides of MapLibre's own stylesheet: one class more specific, so they win in any load order. */
+.map-frame .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  font: 12px/16px var(--font);
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.map-frame .maplibregl-ctrl-attrib a {
+  color: var(--ink-2);
+}
+
+.map-frame .maplibregl-canvas:focus-visible {
+  outline: 3px solid var(--ink); /* drawn inside: the map clips anything outside the canvas */
+  outline-offset: -3px;
+}
+
+@media (pointer: coarse) {
+  .map-frame .maplibregl-ctrl-group button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Checkpoint popup */
+
+/* The card grows out of its dot and shrinks back into it. MapLibre positions .cp-popup with a
+   transform, so only its opacity animates; the scale is on the card inside. */
+.cp-popup {
+  z-index: 3; /* over the dock and the phone's slider card, when a card is too tall to clear them */
+  animation: cp-fade-in 180ms ease-out both;
+}
+
+.cp-popup.is-closing {
+  animation: cp-fade-out 130ms ease-in both;
+}
+
+.cp-popup .maplibregl-popup-content {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(31, 36, 41, 0.14), 0 8px 24px rgba(31, 36, 41, 0.18);
+  font: 13px/18px var(--font);
+  color: var(--ink);
+  transform-origin: 50% 100%;
+  animation: cp-grow 220ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+/* MapLibre lets clicks through the popup's box but not its content: a fading card must let them through
+   too, to the map or to the card opening in its place. */
+.cp-popup.is-closing .maplibregl-popup-content {
+  animation: cp-shrink 130ms ease-in both;
+  pointer-events: none;
+}
+
+/* The card grows from its tip. At a corner anchor the tip sits on a square corner, as in MapLibre's own
+   stylesheet; these rules are one class more specific than the 12 px radius, so that holds in any load
+   order (Vite's dev server and the production build order the two stylesheets differently). */
+.cp-popup.maplibregl-popup-anchor-top .maplibregl-popup-content {
+  transform-origin: 50% 0;
+}
+
+.cp-popup.maplibregl-popup-anchor-left .maplibregl-popup-content {
+  transform-origin: 0 50%;
+}
+
+.cp-popup.maplibregl-popup-anchor-right .maplibregl-popup-content {
+  transform-origin: 100% 50%;
+}
+
+.cp-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-content {
+  transform-origin: 0 0;
+  border-top-left-radius: 0;
+}
+
+.cp-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-content {
+  transform-origin: 100% 0;
+  border-top-right-radius: 0;
+}
+
+.cp-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-content {
+  transform-origin: 0 100%;
+  border-bottom-left-radius: 0;
+}
+
+.cp-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-content {
+  transform-origin: 100% 100%;
+  border-bottom-right-radius: 0;
+}
+
+/* A card hanging below its dot has its tip on the coloured bar, so the tip takes the bar's colour. The
+   level class is on the popup as well as the card, so --cp-accent reaches the tip. */
+.cp-popup:is(.maplibregl-popup-anchor-top, .maplibregl-popup-anchor-top-left, .maplibregl-popup-anchor-top-right)
+  .maplibregl-popup-tip {
+  border-bottom-color: var(--cp-accent, var(--risk-none));
+}
+
+@keyframes cp-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cp-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes cp-grow {
+  from {
+    transform: scale(0.86);
+  }
+}
+
+@keyframes cp-shrink {
+  to {
+    transform: scale(0.92);
+  }
+}
+
+/* The label while the mouse rests on a checkpoint: its ETA and risk. It lets the pointer through to the
+   map, so it never hides the dots it covers from the mouse, and it sits under an open card. */
+.cp-tip {
+  z-index: 2;
+}
+
+.cp-tip .maplibregl-popup-content {
+  padding: 6px 10px 8px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
+  font: 13px/18px var(--font);
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.cp-tip-title {
+  font-weight: 700;
+}
+
+.cp-tip-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* The card: a bar in the checkpoint's risk colour, then the route plate, title and close button. */
+.cp {
+  min-width: 248px;
+  border-top: 5px solid var(--cp-accent, var(--risk-none));
+}
+
+/* Where dots overlap, the card lists each route's checkpoint in a section of its own, under the first
+   section's close button. A list too tall for the map scrolls inside the card (RouteMap.tsx sets its
+   height), without scrolling the page at its ends. */
+.cp-stack {
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+/* The later sections' heads, without a close button, keep the first one's height and padding. */
+.cp + .cp .cp-head {
+  min-height: 42px;
+  padding-right: 14px;
+}
+
+.cp-level-0 {
+  --cp-accent: var(--risk-0);
+}
+
+.cp-level-1 {
+  --cp-accent: var(--risk-1);
+}
+
+.cp-level-2 {
+  --cp-accent: var(--risk-2);
+}
+
+.cp-level-3 {
+  --cp-accent: var(--risk-3);
+}
+
+.cp-level-4 {
+  --cp-accent: var(--risk-4);
+}
+
+/* Set, not left to the fallback, so a No data section in a list doesn't take the card's first colour. */
+.cp-level-none {
+  --cp-accent: var(--risk-none);
+}
+
+.cp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 6px 0 14px;
+}
+
+.plate-mini {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+.plate-mini.plate-rec {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+
+.cp-title {
+  flex: 1;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.cp-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.cp-close svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.cp-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+@media (pointer: coarse) {
+  .cp-close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .cp + .cp .cp-head {
+    min-height: 50px;
+  }
+}
+
+.cp-body {
+  padding: 4px 14px 12px;
+}
+
+.cp-overall {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cp-overall-note {
+  color: var(--ink-3);
+}
+
+.cp-times {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.cp-times dt {
+  color: var(--ink-3);
+}
+
+.cp-times dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-factors {
+  width: 100%;
+  margin-top: 6px;
+  border-collapse: collapse;
+}
+
+.cp-factors th {
+  padding: 2px 8px 2px 0;
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.cp-factors td {
+  padding: 2px 0;
+}
+
+.cp-value {
+  padding-right: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-decides th,
+.cp-decides td {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.cp-rule td {
+  padding-bottom: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+
+.cp-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cp-unrated {
+  color: var(--ink-3);
+}
+
+.cp-missing {
+  margin-top: 8px;
+  color: var(--ink-2);
+}
+
+/* Preferences */
+
+@media (prefers-reduced-motion: reduce) {
+  .road-lane,
+  .road-truck,
+  .results,
+  .button-step,
+  .place-list {
+    animation: none;
+  }
+
+  .spinner {
+    display: none;
+  }
+
+  .button-primary:active:not([aria-disabled='true']) {
+    transform: none;
+  }
+
+  .cp-popup,
+  .cp-popup .maplibregl-popup-content {
+    animation: none;
+  }
+
+  .board-row {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible,
+  .segment:has(:focus-visible) span {
+    outline-color: Highlight;
+  }
+
+  .segment input:checked + span {
+    forced-color-adjust: none;
+    background: SelectedItem;
+    border-color: SelectedItem;
+    color: SelectedItemText;
+  }
+
+  /* The inset bar is a box shadow, which forced colours removes: every row gets a left border instead, so
+     the spotlight only changes its colour and no row's content moves. */
+  .board-row {
+    border-left: 3px solid Canvas;
+  }
+
+  .board-row.is-spot {
+    border-left-color: Highlight;
+  }
+
+  .board-row[aria-pressed='true'] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+
+  .board-row[aria-pressed='true']:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .button-primary {
+    border: 1px solid ButtonText; /* its dark fill is gone in forced colours */
+  }
+
+  .button-primary[aria-disabled='true'] {
+    color: GrayText;
+    border: 1px solid GrayText;
+  }
+
+  .map-frame .maplibregl-ctrl-group button:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .heat-range {
+    appearance: auto; /* Chromium draws its own slider again, in the user's colours */
+  }
+
+  .heat-range:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  /* Firefox keeps the styled parts, whose colours would all turn into the background: give them system
+     colours. (One rule each: a browser that doesn't know a ::-moz- part drops the whole rule.) */
+  .heat-range::-moz-range-track {
+    background: CanvasText;
+  }
+
+  .heat-range::-moz-range-progress {
+    background: Highlight;
+  }
+
+  .heat-range::-moz-range-thumb {
+    border-color: ButtonText;
+    background: ButtonFace;
+  }
+
+  .heat-tick {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .place-option.is-active {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}

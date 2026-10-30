@@ -1,0 +1,30 @@
+# Secrets
+.env
+backend/.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/staticfiles/
+*.sqlite3
+
+# Node / frontend build
+node_modules/
+frontend/dist/
+
+# Vercel
+.vercel/
+
+# OS / editor
+.DS_Store
+
+# Local working files, kept out of the repository
+.claude/
+CLAUDE.md
+REQUIREMENTS.md
+skills-lock.json
+
