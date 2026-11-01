@@ -5,7 +5,7 @@ weather forecast along each route at the time the truck will be there, the load 
 time.
 
 - **Live app:** https://spotter-full-stack-assiginment-whea.vercel.app/
-- **Walkthrough:** TODO (Loom link)
+- **Walkthrough:** https://www.youtube.com/watch?v=_jGSWVELKUM
 
 ## How it works
 
